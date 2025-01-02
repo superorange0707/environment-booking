@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/auth';
-import { Button } from '@mui/material';
+import { Button, Box } from '@mui/material';
 import { logger } from '../utils/logger';
 
 export function OAuthCallback() {
@@ -9,6 +9,7 @@ export function OAuthCallback() {
   const [debugVisible, setDebugVisible] = useState(true);
   const [error, setError] = useState(null);
   const [processState, setProcessState] = useState('initial');
+  const [authComplete, setAuthComplete] = useState(false);
 
   // Store URL info immediately when component mounts
   const [urlInfo] = useState(() => ({
@@ -55,10 +56,8 @@ export function OAuthCallback() {
         
         localStorage.removeItem('oauth_state');
         setProcessState('completed');
+        setAuthComplete(true);  // Set auth complete instead of redirecting
 
-        setTimeout(() => {
-          navigate('/', { replace: true });
-        }, 1000);
       } catch (apiError) {
         logger.error('API Error:', apiError);
         setProcessState('api_error');
@@ -68,15 +67,16 @@ export function OAuthCallback() {
       logger.error('OAuth Error:', error);
       setProcessState('oauth_error');
       setError(error.message);
-      setTimeout(() => {
-        navigate('/login-error', { replace: true });
-      }, 1000);
     }
   }, [navigate, urlInfo, processState]);
 
   useEffect(() => {
     handleCallback();
   }, [handleCallback]);
+
+  const handleContinue = () => {
+    navigate('/', { replace: true });
+  };
 
   return (
     <div style={{ 
@@ -94,6 +94,20 @@ export function OAuthCallback() {
           Error: {error}
         </div>
       )}
+      
+      {/* Show continue button when auth is complete */}
+      {authComplete && (
+        <Box sx={{ mb: 2 }}>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={handleContinue}
+          >
+            Continue to Dashboard
+          </Button>
+        </Box>
+      )}
+
       <Button onClick={() => setDebugVisible(!debugVisible)}>
         {debugVisible ? 'Hide' : 'Show'} Debug Info
       </Button>
