@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import { Box, Typography, Paper, Chip } from '@mui/material';
 import { EventDetailsModal } from '../common/EventDetailsModal';
+import '../calendar/CalendarStyles.css';
 
 export const Calendar = ({ bookings, environments, users, selectedEnvironment = 'all' }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -54,12 +55,13 @@ export const Calendar = ({ bookings, environments, users, selectedEnvironment = 
       return {
         id: booking.booking_id.toString(),
         title: environment?.name || 'Unknown Environment',
-        start: startDate,  // Use Date object directly
-        end: displayEndDate,  // Use Date object directly
+        start: startDate,
+        end: displayEndDate,
         backgroundColor: environmentColors[environment?.environment_id] || '#999999',
         borderColor: environmentColors[environment?.environment_id] || '#999999',
         allDay: true,
         display: 'block',
+        classNames: ['calendar-event-block'],
         extendedProps: {
           purpose: booking.purpose,
           username: user?.username || 'Unknown User',
@@ -151,6 +153,17 @@ export const Calendar = ({ bookings, environments, users, selectedEnvironment = 
     );
   };
 
+  // Add useRef for calendar instance
+  const calendarRef = useRef(null);
+
+  // Add useEffect to force calendar refresh when data changes
+  useEffect(() => {
+    if (calendarRef.current) {
+      const calendarApi = calendarRef.current.getApi();
+      calendarApi.refetchEvents();
+    }
+  }, [bookings, environments, selectedEnvironment]);
+
   return (
     <Box>
       {/* Environment Legend */}
@@ -185,6 +198,7 @@ export const Calendar = ({ bookings, environments, users, selectedEnvironment = 
 
       {/* Calendar */}
       <FullCalendar
+        ref={calendarRef}
         plugins={[dayGridPlugin]}
         initialView="dayGridMonth"
         events={calendarEvents}
@@ -205,6 +219,8 @@ export const Calendar = ({ bookings, environments, users, selectedEnvironment = 
         expandRows={true}
         handleWindowResize={true}
         windowResizeDelay={0}
+        lazyFetching={false}
+        rerenderDelay={0}
         eventClick={(clickInfo) => {
           const booking = bookings.find(b => b.booking_id.toString() === clickInfo.event.id);
           if (booking) {
