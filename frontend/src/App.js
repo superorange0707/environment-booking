@@ -287,6 +287,11 @@ function App() {
         bookingService.getAllBookings()
       ]);
       
+      if (!environments || !bookings) {
+        console.error('Missing required data:', { environments, bookings });
+        throw new Error('Failed to fetch required data');
+      }
+
       // Filter and sort pilot environments
       const pilotEnvironments = environments
         .filter(env => env.type === 'pilot')
@@ -303,12 +308,13 @@ function App() {
       }));
 
       setData({
-        users,
+        users: users || [],
         environments: pilotEnvironments,
         bookings: formattedBookings
       });
     } catch (error) {
       console.error('Error fetching data:', error);
+      // Optionally show an error message to the user
     }
   };
 
@@ -333,10 +339,14 @@ function App() {
   };
 
   // Modify the admin switch handler
-  const handleAdminModeToggle = (e) => {
+  const handleAdminModeToggle = async (e) => {
     // Only allow switching if user has admin role
     if (user?.role === 'admin') {
       setIsAdmin(e.target.checked);
+      if (e.target.checked) {
+        // Fetch fresh data when switching to admin mode
+        await fetchData();
+      }
     }
   };
 
@@ -408,13 +418,18 @@ function App() {
                 </Typography>
                 
                 {isAdmin ? (
-                  <AdminDashboard 
-                    data={data}
-                    onEnvironmentUpdate={handleEnvironmentUpdate}
-                    onBookingUpdate={handleBookingUpdate}
-                    onBookingsChange={fetchData}
-                    onCancelBooking={handleBookingCancel}
-                  />
+                  data.environments && data.bookings ? (
+                    <AdminDashboard 
+                      environments={data.environments}
+                      bookings={data.bookings}
+                      users={data.users}
+                      onBookingsChange={fetchData}
+                    />
+                  ) : (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                      <CircularProgress />
+                    </Box>
+                  )
                 ) : (
                   <Grid container spacing={3} sx={{ mb: 4 }}>
                     {/* Status Panel */}
