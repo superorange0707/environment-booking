@@ -241,7 +241,8 @@ function App() {
     const handleAuthUpdate = (event) => {
       const userInfo = event.detail;
       setUser(userInfo);
-      setIsAdmin(userInfo.role === 'admin');
+      // Don't automatically enable admin mode on login
+      setIsAdmin(false);
     };
 
     window.addEventListener('auth-update', handleAuthUpdate);
@@ -264,8 +265,8 @@ function App() {
           const storedUser = JSON.parse(localStorage.getItem('user'));
           if (storedUser) {
             setUser(storedUser);
-            // Only enable admin mode if user has admin role
-            setIsAdmin(storedUser.role === 'admin' ? true : false);
+            // Don't automatically set admin mode
+            setIsAdmin(false);
           }
         } catch (error) {
           console.error('Auth check failed:', error);
@@ -406,7 +407,7 @@ function App() {
                   {isAdmin ? 'Admin Dashboard' : 'User Dashboard'}
                 </Typography>
                 
-                {isAdmin && user ? (
+                {isAdmin ? (
                   <AdminDashboard 
                     data={data}
                     onEnvironmentUpdate={handleEnvironmentUpdate}
