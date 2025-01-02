@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { exec } = require('child_process');
 
 router.get('/me', async (req, res) => {
   try {
@@ -11,46 +12,42 @@ router.get('/me', async (req, res) => {
       return res.status(401).json({ message: 'No token provided' });
     }
 
-    console.log('Making request to OpenShift API...');
-    const fetch = (await import('node-fetch')).default;
-    const https = await import('https');
+    console.log('Making request to OpenShift API using curl...');
     
-    try {
-      const response = await fetch(
-        `${process.env.OPENSHIFT_API_URL}/apis/user.openshift.io/v1/users/~`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          },
-          agent: new https.Agent({
-            rejectUnauthorized: false
-          })
-        }
-      );
-
-      console.log('OpenShift API response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('OpenShift API error details:', errorText);
-        return res.status(response.status).json({ 
-          message: 'OpenShift API error',
-          status: response.status,
-          details: errorText
+    // Construct curl command with -k flag to ignore SSL certificate issues
+    const curlCommand = `curl -k -s -H "Authorization: Bearer ${token}" -H "Accept: application/json" ${process.env.OPENSHIFT_API_URL}/apis/user.openshift.io/v1/users/~`;
+    
+    exec(curlCommand, (error, stdout, stderr) => {
+      if (error) {
+        console.error('Curl execution error:', error);
+        return res.status(500).json({
+          message: 'Failed to execute curl command',
+          error: error.message
         });
       }
 
-      const userData = await response.json();
-      console.log('Successfully got user data from OpenShift');
-      
-      res.json({
-        username: userData.metadata.name
-      });
-    } catch (fetchError) {
-      console.error('Fetch error details:', fetchError);
-      throw fetchError;
-    }
+      if (stderr) {
+        console.error('Curl stderr:', stderr);
+      }
+
+      try {
+        const userData = JSON.parse(stdout);
+        console.log('Successfully got user data from OpenShift');
+        
+        res.json({
+          username: userData.metadata.name
+        });
+      } catch (parseError) {
+        console.error('Error parsing OpenShift response:', parseError);
+        console.error('Raw response:', stdout);
+        res.status(500).json({
+          message: 'Failed to parse OpenShift response',
+          error: parseError.message,
+          raw: stdout
+        });
+      }
+    });
+
   } catch (error) {
     console.error('Auth error:', error);
     res.status(500).json({ 
