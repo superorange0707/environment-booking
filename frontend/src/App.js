@@ -242,15 +242,27 @@ function App() {
 
   // Separate auth loading from data loading
   useEffect(() => {
+    const handleAuthUpdate = (event) => {
+      const userInfo = event.detail;
+      setUser(userInfo);
+      setIsAdmin(userInfo.role === 'admin');
+    };
+
+    window.addEventListener('auth-update', handleAuthUpdate);
+
+    return () => {
+      window.removeEventListener('auth-update', handleAuthUpdate);
+    };
+  }, []);
+
+  useEffect(() => {
     const init = async () => {
       try {
-        // First fetch public data
         await fetchData();
       } finally {
         setInitialLoading(false);
       }
 
-      // Then check auth if token exists
       if (authService.isAuthenticated()) {
         try {
           const storedUser = JSON.parse(localStorage.getItem('user'));
