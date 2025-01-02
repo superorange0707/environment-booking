@@ -1,161 +1,97 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { authService } from '../services/auth';
-import { Button, Box } from '@mui/material';
-import { logger } from '../utils/logger';
+const express = require('express');
+const router = express.Router();
+const https = require('https');
 
-export function OAuthCallback() {
-  const navigate = useNavigate();
-  const [debugVisible, setDebugVisible] = useState(true);
-  const [error, setError] = useState(null);
-  const [processState, setProcessState] = useState('initial');
-  const [authComplete, setAuthComplete] = useState(false);
-  const [userInfo, setUserInfo] = useState(null);
-
-  // Store URL info immediately when component mounts
-  const [urlInfo] = useState(() => ({
-    fullUrl: window.location.href,
-    hash: window.location.hash,
-    search: window.location.search
-  }));
-
-  const handleCallback = useCallback(async () => {
-    try {
-      setProcessState('started');
-      logger.log('Starting OAuth callback processing...');
-      
-      if (!urlInfo.hash && processState !== 'initial') {
-        logger.log('Skipping callback processing - no hash present');
-        return;
-      }
-
-      logger.log('1. Captured URL:', urlInfo.fullUrl);
-      logger.log('2. Captured hash:', urlInfo.hash);
-      logger.log('3. Captured search:', urlInfo.search);
-
-      const expectedCallback = localStorage.getItem('oauth_state');
-      logger.log('4. Expected callback:', expectedCallback);
-
-      let token = null;
-      if (urlInfo.hash) {
-        const params = new URLSearchParams(urlInfo.hash.substring(1));
-        token = params.get('access_token');
-        logger.log('5a. Token from hash:', token ? 'Found' : 'Not found');
-      }
-
-      if (!token) {
-        setProcessState('no_token');
-        throw new Error('No token found in URL');
-      }
-
-      localStorage.setItem('token', token);
-      setProcessState('token_stored');
-      logger.log('6. Token stored:', !!localStorage.getItem('token'));
-
-      try {
-        const info = await authService.handleCallback();
-        logger.log('7. Auth completed:', info);
-        setUserInfo(info);
-        localStorage.removeItem('oauth_state');
-        setProcessState('completed');
-        setAuthComplete(true);
-      } catch (apiError) {
-        logger.error('API Error:', apiError);
-        setProcessState('api_error');
-        setError(`API Error: ${apiError.message}`);
-      }
-    } catch (error) {
-      logger.error('OAuth Error:', error);
-      setProcessState('oauth_error');
-      setError(error.message);
+router.get('/me', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    console.log('Backend received token request');
+    
+    if (!token) {
+      console.log('No token in request');
+      return res.status(401).json({ message: 'No token provided' });
     }
-  }, [urlInfo, processState]);
 
-  useEffect(() => {
-    handleCallback();
-  }, [handleCallback]);
+    console.log('Making request to OpenShift API...');
 
-  const handleContinue = () => {
-    logger.log('User clicked continue, navigating to dashboard...');
-    navigate('/', { replace: true });
-  };
-
-  return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      height: '100vh',
-      flexDirection: 'column',
-      gap: '1rem'
-    }}>
-      <h2>Processing Login...</h2>
-      <div>Current state: {processState}</div>
-      {error && (
-        <div style={{ color: 'red', marginBottom: '1rem' }}>
-          Error: {error}
-        </div>
-      )}
+    // Create a Promise-based HTTPS request
+    const getUserInfo = () => new Promise((resolve, reject) => {
+      // Parse the OpenShift API URL
+      const apiUrl = new URL(process.env.OPENSHIFT_API_URL);
       
-      {/* Show continue button when auth is complete */}
-      {authComplete && (
-        <Box sx={{ mb: 2 }}>
-          <Button 
-            variant="contained" 
-            color="primary" 
-            onClick={handleContinue}
-          >
-            Continue to Dashboard
-          </Button>
-        </Box>
-      )}
+      const options = {
+        hostname: apiUrl.hostname,
+        port: apiUrl.port || 443,
+        path: '/apis/user.openshift.io/v1/users/~',
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        rejectUnauthorized: false,  // Ignore certificate issues
+        timeout: 5000  // 5 second timeout
+      };
 
-      <Button onClick={() => setDebugVisible(!debugVisible)}>
-        {debugVisible ? 'Hide' : 'Show'} Debug Info
-      </Button>
-      {debugVisible && (
-        <>
-          <pre style={{ 
-            maxWidth: '80%', 
-            overflow: 'auto', 
-            wordWrap: 'break-word',
-            backgroundColor: '#f5f5f5',
-            padding: '1rem',
-            borderRadius: '4px'
-          }}>
-            {JSON.stringify({
-              process_state: processState,
-              captured_url: urlInfo.fullUrl,
-              captured_hash: urlInfo.hash,
-              captured_search: urlInfo.search,
-              expected_callback: localStorage.getItem('oauth_state'),
-              token_present: !!localStorage.getItem('token'),
-              user_info: localStorage.getItem('user'),
-              authenticated: authService.isAuthenticated(),
-              error: error
-            }, null, 2)}
-          </pre>
-          <div style={{ 
-            maxWidth: '80%', 
-            maxHeight: '200px', 
-            overflow: 'auto',
-            backgroundColor: '#1e1e1e',
-            color: '#fff',
-            padding: '1rem',
-            borderRadius: '4px',
-            fontFamily: 'monospace'
-          }}>
-            {logger?.getLogs()?.map((log, index) => (
-              <div key={index} style={{ 
-                color: log.type === 'error' ? '#ff6b6b' : '#a8ff60',
-                marginBottom: '4px'
-              }}>
-                [{log.timestamp}] {log.message}
-              </div>
-            )) || 'No logs available'}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
+      const req = https.request(options, (response) => {
+        let data = '';
+
+        response.on('data', (chunk) => {
+          data += chunk;
+        });
+
+        response.on('end', () => {
+          console.log('OpenShift API response status:', response.statusCode);
+          
+          if (response.statusCode !== 200) {
+            reject(new Error(`API returned status ${response.statusCode}: ${data}`));
+            return;
+          }
+
+          try {
+            const parsedData = JSON.parse(data);
+            resolve(parsedData);
+          } catch (parseError) {
+            reject(new Error(`Failed to parse response: ${parseError.message}`));
+          }
+        });
+      });
+
+      req.on('error', (error) => {
+        console.error('Request error:', error);
+        reject(error);
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Request timed out'));
+      });
+
+      req.end();
+    });
+
+    try {
+      const userData = await getUserInfo();
+      console.log('Successfully got user data from OpenShift');
+      
+      res.json({
+        username: userData.metadata.name
+      });
+    } catch (apiError) {
+      console.error('OpenShift API error:', apiError);
+      res.status(500).json({
+        message: 'Failed to get user info from OpenShift',
+        error: apiError.message
+      });
+    }
+
+  } catch (error) {
+    console.error('Auth error:', error);
+    res.status(500).json({ 
+      message: 'Authentication failed', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router; 
