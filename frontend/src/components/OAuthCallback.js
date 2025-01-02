@@ -10,6 +10,7 @@ export function OAuthCallback() {
   const [error, setError] = useState(null);
   const [processState, setProcessState] = useState('initial');
   const [authComplete, setAuthComplete] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
 
   // Store URL info immediately when component mounts
   const [urlInfo] = useState(() => ({
@@ -21,6 +22,7 @@ export function OAuthCallback() {
   const handleCallback = useCallback(async () => {
     try {
       setProcessState('started');
+      logger.log('Starting OAuth callback processing...');
       
       if (!urlInfo.hash && processState !== 'initial') {
         logger.log('Skipping callback processing - no hash present');
@@ -51,13 +53,12 @@ export function OAuthCallback() {
       logger.log('6. Token stored:', !!localStorage.getItem('token'));
 
       try {
-        const userInfo = await authService.handleCallback();
-        logger.log('7. Auth completed:', userInfo);
-        
+        const info = await authService.handleCallback();
+        logger.log('7. Auth completed:', info);
+        setUserInfo(info);
         localStorage.removeItem('oauth_state');
         setProcessState('completed');
-        setAuthComplete(true);  // Set auth complete instead of redirecting
-
+        setAuthComplete(true);
       } catch (apiError) {
         logger.error('API Error:', apiError);
         setProcessState('api_error');
@@ -68,13 +69,14 @@ export function OAuthCallback() {
       setProcessState('oauth_error');
       setError(error.message);
     }
-  }, [navigate, urlInfo, processState]);
+  }, [urlInfo, processState]);
 
   useEffect(() => {
     handleCallback();
   }, [handleCallback]);
 
   const handleContinue = () => {
+    logger.log('User clicked continue, navigating to dashboard...');
     navigate('/', { replace: true });
   };
 
