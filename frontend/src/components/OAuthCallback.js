@@ -40,6 +40,9 @@ export function OAuthCallback() {
         localStorage.removeItem('oauth_state');
         setProcessState('completed');
         
+        // Dispatch a custom event to notify App.js about the login
+        window.dispatchEvent(new CustomEvent('auth-update', { detail: userInfo }));
+        
         // Auto-navigate after successful auth
         setTimeout(() => {
           navigate('/', { replace: true });
