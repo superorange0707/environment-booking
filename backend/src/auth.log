@@ -1,0 +1,8 @@
+{"timestamp":"2025-01-02T18:20:08.879Z","message":"Auth attempt","data":{"headers":"Present"}}
+{"timestamp":"2025-01-02T18:20:09.073Z","message":"Auth error","data":{"error":"request to https://api.your-cluster:6443/apis/user.openshift.io/v1/users/~ failed, reason: getaddrinfo ENOTFOUND api.your-cluster"}}
+{"timestamp":"2025-01-02T18:20:09.095Z","message":"Auth attempt","data":{"headers":"Present"}}
+{"timestamp":"2025-01-02T18:20:09.185Z","message":"Auth error","data":{"error":"request to https://api.your-cluster:6443/apis/user.openshift.io/v1/users/~ failed, reason: getaddrinfo ENOTFOUND api.your-cluster"}}
+{"timestamp":"2025-01-02T18:23:57.860Z","message":"Auth attempt","data":{"headers":"Present"}}
+{"timestamp":"2025-01-02T18:23:57.949Z","message":"Auth error","data":{"error":"request to https://api.your-cluster:6443/apis/user.openshift.io/v1/users/~ failed, reason: getaddrinfo ENOTFOUND api.your-cluster"}}
+{"timestamp":"2025-01-02T18:23:57.968Z","message":"Auth attempt","data":{"headers":"Present"}}
+{"timestamp":"2025-01-02T18:23:58.021Z","message":"Auth error","data":{"error":"request to https://api.your-cluster:6443/apis/user.openshift.io/v1/users/~ failed, reason: getaddrinfo ENOTFOUND api.your-cluster"}}
