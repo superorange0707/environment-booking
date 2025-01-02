@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -17,6 +17,7 @@ import {
 import CancelIcon from '@mui/icons-material/Cancel';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import { EventDetailsModal } from '../common/EventDetailsModal';
+import '../calendar/CalendarStyles.css';
 import './AdminCalendar.css';
 
 export function AdminCalendar({ bookings, environments, users, onAuditClick, onCancelBooking }) {
@@ -222,6 +223,17 @@ export function AdminCalendar({ bookings, environments, users, onAuditClick, onC
     );
   };
 
+  // Add useRef for calendar instance
+  const calendarRef = useRef(null);
+
+  // Add useEffect to force calendar refresh when data changes
+  useEffect(() => {
+    if (calendarRef.current) {
+      const calendarApi = calendarRef.current.getApi();
+      calendarApi.refetchEvents();
+    }
+  }, [bookings, environments, selectedEnvironment]);
+
   return (
     <Box>
       {/* Top Bar */}
@@ -337,6 +349,7 @@ export function AdminCalendar({ bookings, environments, users, onAuditClick, onC
         boxShadow: '0 4px 20px 0 rgba(0,0,0,0.05)'
       }}>
         <FullCalendar
+          ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin]}
           initialView="dayGridMonth"
           events={filteredEvents}
@@ -360,6 +373,8 @@ export function AdminCalendar({ bookings, environments, users, onAuditClick, onC
           expandRows={true}
           handleWindowResize={true}
           windowResizeDelay={0}
+          lazyFetching={false}
+          rerenderDelay={0}
         />
       </Box>
 
