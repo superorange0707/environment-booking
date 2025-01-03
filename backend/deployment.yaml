@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calendar-backend
+  namespace: <namespace>
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: calendar-backend
+  template:
+    metadata:
+      labels:
+        app: calendar-backend
+    spec:
+      containers:
+      - name: backend
+        image: <backend-image>
+        ports:
+        - containerPort: 8080  # Matches Dockerfile's EXPOSE
+        envFrom:
+        - configMapRef:
+            name: backend-config  # Reference the ConfigMap for the backend
+        - secretRef:
+            name: backend-secret  # Reference the Secret for the backend
