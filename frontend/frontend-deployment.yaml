@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calendar-frontend
+  namespace: <namespace>
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: calendar-frontend
+  template:
+    metadata:
+      labels:
+        app: calendar-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: <frontend-image>
+        ports:
+        - containerPort: 80  # Matches Dockerfile's EXPOSE
+        envFrom:
+        - configMapRef:
+            name: frontend-config  # Reference the ConfigMap for the frontend
+        - secretRef:
+            name: frontend-secret  # Reference the Secret for the frontend
+        volumeMounts:
+        - name: tls-cert
+          mountPath: /etc/tls  # Self-signed certificate
+          readOnly: true
+      volumes:
+      - name: tls-cert
+        secret:
+          secretName: frontend-tls
